@@ -1,34 +1,80 @@
 ---
 name: analyze-vague-claims
 description: Analyze a resume for vague or unquantified claims. Use this skill when you need to identify statements that lack specific numbers, metrics, or concrete details.
-allowed-tools: Bash, Read
+allowed-tools: Read
 ---
 
 # Analyze Vague Claims
 
-This skill analyzes a resume file to detect vague or unquantified claims that should be made more specific.
+This skill analyzes resume content to detect vague or unquantified claims that should be made more specific.
 
-## Usage
+## Parameters
 
-When invoked, you will receive a resume file path. Run the analysis tool and return the results.
+You will receive a `resume_file_path` parameter containing the path to the resume file.
+
+## Pattern Reference
+
+Use these patterns to identify vague claims. Report only the HIGHEST severity issue per line.
+
+### HIGH Severity (Must Fix)
+
+| Pattern | Issue | Exception | Suggestion |
+|---------|-------|-----------|------------|
+| "led team", "managed team", "supervised team", "directed team" without size | Team size not specified | OK if followed by "of [number]" | Specify team size: "Led team of [N] engineers" |
+| "improved", "increased", "enhanced", "boosted", "optimized" without metric | Improvement not quantified | OK if followed by "by [number]%" or specific metric | Quantify: "Improved [X] by [N]%" |
+| "reduced", "decreased", "cut", "lowered" without metric | Reduction not quantified | OK if followed by "by [number]%" or specific metric | Quantify: "Reduced [X] by [N]%" |
+| "things", "stuff" | Informal and vague | Never acceptable | Be specific about what was done |
+
+### MEDIUM Severity (Should Fix)
+
+| Pattern | Issue | Suggestion |
+|---------|-------|------------|
+| "responsible for" | Passive language - what did you actually DO? | Replace with action verb: "Managed", "Developed", "Led" |
+| "helped with", "helped to" | Understates contribution | "Collaborated with X to achieve Y" or specify your contribution |
+| "worked on" | Vague - what was your specific role? | Use specific verb: "Designed", "Built", "Implemented" |
+| "assisted", "assisted with", "assisted in" | Understates contribution | Clarify your specific contribution and impact |
+| "involved in", "involved with" | Doesn't specify your role | Describe your specific contribution |
+| "significant", "significantly", "substantial", "substantially" | Vague intensifier without evidence | Replace with specific number: "40% improvement" |
+| "good results", "great results", "excellent results" | Subjective without evidence | Quantify the results with specific metrics |
+
+### LOW Severity (Nice to Fix)
+
+| Pattern | Issue | Suggestion |
+|---------|-------|------------|
+| "various [X]" | Vague quantity | List specific items or use a number: "5 projects" |
+| "multiple [X]" | How many exactly? | Specify the number: "8 clients" |
+| "stakeholders" | Too generic | Specify who: "executives", "customers", "engineering leads" |
+| "some", "several", "many", "few" | Vague quantity | Use specific number when possible |
+| "etc." | Incomplete thought | List all items or remove |
+| "handled", "dealt with" | Generic action verb | Use specific verb: "Resolved", "Processed", "Managed" |
 
 ## Instructions
 
-1. You will be given a `resume_file_path` parameter
-2. Run the Python analysis tool using Bash:
-   ```bash
-   python3 tools/detect_vague_claims.py "<resume_file_path>" --json
-   ```
-3. Parse the JSON output and present the findings in a structured format
+1. **Read the resume file** using the Read tool with the provided path
+2. **Analyze each line** (skip lines that are headers starting with #)
+3. **Check against patterns above** in priority order (HIGH → MEDIUM → LOW)
+4. **Apply exceptions**: Do NOT flag patterns where the exception condition is met
+   - Example: "Led team of 5 engineers" → NOT a violation (has size)
+   - Example: "Improved latency by 40%" → NOT a violation (has metric)
+5. **Report ONE issue per line** - only the highest severity match
+6. **Calculate score** using the formula below
+7. **Format output** according to the Output Protocol
+
+## Scoring Formula
+
+```
+Score = 100 - (HIGH_count × 15) - (MEDIUM_count × 8) - (LOW_count × 3)
+Minimum: 0, Maximum: 100
+```
 
 ## Output Protocol
 
-Return your analysis in this format:
+Return your analysis in this exact format:
 
 ```markdown
 ## Vague Claims Analysis
 
-**Score:** [clarity_score]/100
+**Score:** [score]/100
 **Total Issues:** [count] ([high] high, [medium] medium, [low] low severity)
 
 ### High Severity Issues (must fix)
@@ -47,9 +93,10 @@ Return your analysis in this format:
 | [line] | [vague text] | [how to quantify] |
 ```
 
+If a severity level has no issues, include the header but write "None found" in place of the table.
+
 ## Error Handling
 
-If the tool fails to run:
-1. Check if the file path exists using Read tool
-2. Report the error clearly
-3. Suggest potential fixes (e.g., check file path)
+If the file cannot be read:
+1. Report the error clearly: "Error: Could not read file at [path]"
+2. Suggest checking the file path

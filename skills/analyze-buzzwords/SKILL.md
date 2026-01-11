@@ -1,29 +1,129 @@
 ---
 name: analyze-buzzwords
 description: Analyze a resume for overused buzzwords and corporate jargon. Use this skill to identify empty phrases that should be replaced with concrete, specific language.
-allowed-tools: Bash, Read
+allowed-tools: Read
 ---
 
 # Analyze Buzzwords
 
-This skill analyzes a resume file to detect overused buzzwords and corporate jargon that reduce clarity and impact.
+This skill analyzes resume content to detect overused buzzwords and corporate jargon that reduce clarity and impact.
 
-## Usage
+## Parameters
 
-When invoked, you will receive a resume file path. Run the analysis tool and return the results.
+You will receive a `resume_file_path` parameter containing the path to the resume file.
+
+## Buzzword Categories
+
+### HIGH Severity: Corporate Jargon (Empty phrases - replace immediately)
+
+| Buzzword | Context Exception | Suggested Alternative |
+|----------|-------------------|----------------------|
+| synergy, synergize | - | collaboration, coordination, combined effort |
+| leverage, leveraged | OK in financial context (leverage ratio, financial leverage, debt leverage) | use, apply, utilize |
+| paradigm, paradigm shift | - | model, approach, framework; fundamental change |
+| bandwidth | OK in technical context (network bandwidth, MB/s, Gbps, data transfer) | capacity, time, availability |
+| circle back | - | follow up, revisit, discuss later |
+| move the needle | - | make measurable impact, improve metrics |
+| low-hanging fruit | - | quick wins, easy improvements |
+| boil the ocean | - | overreach, attempt too much |
+| value-add, value proposition | - | benefit, contribution, advantage |
+| core competency | - | key skill, main strength |
+| best-in-class, world-class | - | [describe what makes it excellent with specifics] |
+| cutting-edge, bleeding-edge | - | [specify the technology or approach] |
+| game-changer, game-changing | - | [describe the actual impact with metrics] |
+| disruptive, disrupt | - | [describe what changed and how] |
+| innovative, innovation | - | [describe the novel approach specifically] |
+| revolutionary, transformational | - | [describe the transformation with evidence] |
+| holistic | - | comprehensive, integrated, complete |
+| robust | OK in technical context (robust testing, robust error handling, fault-tolerant) | reliable, well-tested, resilient |
+| scalable | OK with specifics (scalable to N users, horizontally/vertically scalable) | [specify how it scales] |
+| seamless | - | smooth, integrated, automatic, frictionless |
+| streamlined | - | simplified, efficient, optimized |
+| ecosystem | OK with platform names (AWS ecosystem, React ecosystem, Python ecosystem) | environment, platform, suite of tools |
+| empower, empowered | - | enable, support, give authority to, train |
+
+### MEDIUM Severity: Self-Descriptive (Show, don't tell)
+
+| Buzzword | Suggested Alternative |
+|----------|----------------------|
+| passionate | [demonstrate through achievements and dedication] |
+| driven, motivated, self-motivated | [demonstrate through results and initiative] |
+| detail-oriented | [show through specific examples of attention to detail] |
+| results-oriented, results-driven | [show the actual results with numbers] |
+| team player | [show collaboration examples with outcomes] |
+| go-getter | [show examples of initiative] |
+| self-starter | [show examples of independent work] |
+| proactive | [show examples of anticipating needs] |
+| dynamic | [describe specific adaptability examples] |
+| hardworking, dedicated | [show through accomplishments] |
+| enthusiastic | [show through engagement and results] |
+| creative | [show creative solutions you implemented] |
+| strategic thinker | [show strategic decisions and their outcomes] |
+| thought leader | [cite publications, talks, or influence metrics] |
+| visionary | [describe the vision and its implementation] |
+| guru | [remove - describe actual expertise area] |
+| ninja | [remove - describe actual skills] |
+| rockstar | [remove - describe actual achievements] |
+| wizard | [remove - describe actual capabilities] |
+| expert | [specify expertise area with evidence: certifications, years, projects] |
+
+### MEDIUM Severity: Vague Achievements (Quantify these)
+
+| Buzzword | Suggested Alternative |
+|----------|----------------------|
+| exceeded expectations | specify by how much (exceeded quota by 20%) |
+| consistently exceeded | specify frequency and amount |
+| top performer | specify ranking (top 5%, #1 in region) |
+| high performer | specify metrics or ranking |
+| outstanding results | quantify the results |
+| exceptional results | quantify the results |
+| proven track record | cite 2-3 specific achievements |
+| demonstrated ability | describe specific instances with outcomes |
+| strong background | specify years and key accomplishments |
+| extensive experience | specify years: "8 years of experience in..." |
+| vast experience | specify years and breadth |
+
+### LOW Severity: Action Verbs (Overused but acceptable if substantive)
+
+| Buzzword | Suggested Alternative |
+|----------|----------------------|
+| spearheaded | led, initiated, started |
+| championed | advocated for, promoted, led adoption of |
+| orchestrated | coordinated, organized, managed |
+| quarterbacked | led, managed, directed |
+| drove | led, managed, increased |
+| evangelized | promoted, advocated for, trained others on |
+| socialized | shared, presented, communicated |
+
+## Context Exception Rules
+
+Do NOT flag these buzzwords when they appear in appropriate technical or financial context:
+
+- **bandwidth** + network/MB/Mbps/Gbps/usage/consumption/transfer/throughput = ALLOW
+- **leverage** + financial/ratio/debt/capital/investment = ALLOW
+- **scalable** + "to [number]"/horizontally/vertically/architecture/infrastructure = ALLOW
+- **robust** + testing/test/error/handling/fault/tolerant = ALLOW
+- **ecosystem** + AWS/Azure/Google/GCP/React/Node/Python/JavaScript/developer = ALLOW
 
 ## Instructions
 
-1. You will be given a `resume_file_path` parameter
-2. Run the Python analysis tool using Bash:
-   ```bash
-   python3 tools/detect_buzzwords.py "<resume_file_path>" --json
-   ```
-3. Parse the JSON output and present the findings in a structured format
+1. **Read the resume file** using the Read tool with the provided path
+2. **Scan each line** for buzzwords from all categories above
+3. **Apply context exceptions** before flagging - check surrounding words
+4. **Note the category and severity** for each match
+5. **Calculate clarity score** using the formula below
+6. **Format output** according to the Output Protocol
+
+## Scoring Formula
+
+```
+Score = 100 - (HIGH_count × 15) - (MEDIUM_count × 8) - (LOW_count × 3)
+Minimum: 0, Maximum: 100
+```
 
 ## Output Protocol
 
-Return your analysis in this format:
+Return your analysis in this exact format:
 
 ```markdown
 ## Buzzword Analysis
@@ -34,22 +134,23 @@ Return your analysis in this format:
 ### High Severity (empty jargon - replace immediately)
 | Line | Buzzword | Category | Suggested Alternative |
 |------|----------|----------|----------------------|
-| [line] | [word/phrase] | [category] | [concrete alternative] |
+| [line] | [word/phrase] | corporate_jargon | [concrete alternative] |
 
 ### Medium Severity (overused - consider replacing)
 | Line | Buzzword | Category | Suggested Alternative |
 |------|----------|----------|----------------------|
-| [line] | [word/phrase] | [category] | [concrete alternative] |
+| [line] | [word/phrase] | self_descriptive / vague_achievement | [concrete alternative] |
 
 ### Low Severity (acceptable but watch frequency)
 | Line | Buzzword | Category | Suggested Alternative |
 |------|----------|----------|----------------------|
-| [line] | [word/phrase] | [category] | [concrete alternative] |
+| [line] | [word/phrase] | action_verbs | [concrete alternative] |
 ```
+
+If a severity level has no issues, include the header but write "None found" in place of the table.
 
 ## Error Handling
 
-If the tool fails to run:
-1. Check if the file path exists using Read tool
-2. Report the error clearly
-3. Suggest potential fixes (e.g., check file path)
+If the file cannot be read:
+1. Report the error clearly: "Error: Could not read file at [path]"
+2. Suggest checking the file path

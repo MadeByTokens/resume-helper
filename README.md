@@ -885,8 +885,8 @@ Try saving the file as UTF-8.
 ---
 
 ## Contributing
+This is a community-built plugin. Contributions welcome!
 
-This plugin is part of the [bon-cop-bad-cop](https://github.com/your-repo) project. Contributions welcome!
 
 ### Adding New Patterns
 

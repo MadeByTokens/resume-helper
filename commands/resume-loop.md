@@ -148,117 +148,233 @@ Create `.resume-state.json`:
 
 ## Step 5: Main Loop
 
-```
-while iteration < maxIterations AND lastVerdict != "READY":
-    iteration++
+**CRITICAL: This is an ITERATIVE LOOP. You MUST repeat Phases 1→2→2.5→3 until exit condition is met.**
 
-    === PHASE 1: WRITING ===
-    Update state: phase = "WRITING"
+Exit conditions (check AFTER each complete iteration):
+- `lastVerdict == "READY"` → Exit loop, proceed to Step 6
+- `iteration >= maxIterations` → Exit loop, proceed to Step 6
 
-    Invoke Resume Writer agent via Task tool:
-    - Provide: candidate experience, job description (if any), coach feedback (if any)
-    - DO NOT provide: interviewer's raw feedback
-    - Agent type: resume-helper:resume-writer
+**If neither exit condition is met, you MUST start the next iteration.**
 
-    Save Writer's output to state.currentResume
+═══════════════════════════════════════════════════════════════════════════════
+ITERATION START: Increment iteration counter, then execute Phases 1, 2, 2.5, 3
+═══════════════════════════════════════════════════════════════════════════════
 
-    === PHASE 2: REVIEWING ===
-    Update state: phase = "REVIEWING"
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 1 of 4: WRITING                                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update state: phase = "WRITING"                                             │
+│                                                                             │
+│ Invoke Resume Writer agent via Task tool:                                   │
+│ - Provide: candidate experience, job description (if any), coach feedback   │
+│ - DO NOT provide: interviewer's raw feedback                                │
+│ - Agent type: resume-helper:resume-writer                                   │
+│                                                                             │
+│ Save Writer's output to state.currentResume                                 │
+│                                                                             │
+│ → When complete, IMMEDIATELY CONTINUE to Phase 2                            │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    Invoke Interviewer agent via Task tool:
-    - Provide: current resume only, job description (if any)
-    - DO NOT provide: candidate's raw experience, writer's notes
-    - Agent type: resume-helper:interviewer
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2 of 4: REVIEWING                                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update state: phase = "REVIEWING"                                           │
+│                                                                             │
+│ Invoke Interviewer agent via Task tool:                                     │
+│ - Provide: current resume only, job description (if any)                    │
+│ - DO NOT provide: candidate's raw experience, writer's notes                │
+│ - Agent type: resume-helper:interviewer                                     │
+│                                                                             │
+│ Save Interviewer's review to state.history[iteration].interviewerReview     │
+│                                                                             │
+│ → When complete, IMMEDIATELY CONTINUE to Phase 2.5                          │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    Save Interviewer's review to state.history[iteration].interviewerReview
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2.5 of 4: ANALYSIS                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update state: phase = "ANALYZING"                                           │
+│                                                                             │
+│ **CRITICAL: You MUST run ALL analysis skills below in sequence.**           │
+│ **Do NOT stop after the first skill. Run ALL 4 skills (3 required + 1       │
+│ conditional), THEN continue to Phase 3.**                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    === PHASE 2.5: ANALYSIS ===
-    Update state: phase = "ANALYZING"
+Run these 4 skills in order (3 required + 1 conditional):
 
-    Run analysis skills BEFORE invoking Coach (these run in plugin context with proper file access):
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SKILL 1 of 4: analyze-vague-claims                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Args: resume_file_path=<absolute path to current resume>                    │
+│ Save output to: vague_claims_results                                        │
+│                                                                             │
+│ → When complete, IMMEDIATELY CONTINUE to Skill 2                            │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    1. Invoke `analyze-vague-claims` skill:
-       - Args: resume_file_path=<absolute path to current resume>
-       - Capture output as vague_claims_results
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SKILL 2 of 4: analyze-buzzwords                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Args: resume_file_path=<absolute path to current resume>                    │
+│ Save output to: buzzwords_results                                           │
+│                                                                             │
+│ → When complete, IMMEDIATELY CONTINUE to Skill 3                            │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    2. Invoke `analyze-buzzwords` skill:
-       - Args: resume_file_path=<absolute path to current resume>
-       - Capture output as buzzwords_results
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SKILL 3 of 4: check-ats-compatibility                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Args: resume_file_path=<absolute path to current resume>                    │
+│       job_description_path=<path or "none">                                 │
+│       max_pages=<N>                                                         │
+│ Save output to: ats_results                                                 │
+│                                                                             │
+│ → When complete, IMMEDIATELY CONTINUE to Skill 4 (or skip if condition not  │
+│   met, then proceed to CHECKPOINT)                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    3. Invoke `check-ats-compatibility` skill:
-       - Args: resume_file_path=<absolute path>, job_description_path=<path or "none">, max_pages=<N>
-       - Capture output as ats_results
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ SKILL 4 of 4: suggest-quantification (CONDITIONAL)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Condition: Run ONLY if iteration > 1 OR lastVerdict == NEEDS_GROUNDING      │
+│ Args: resume_file_path=<absolute path to current resume>                    │
+│ Save output to: quantification_results                                      │
+│                                                                             │
+│ → When complete (or skipped), PROCEED to CHECKPOINT below                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    4. If iteration > 1 or previous verdict was NEEDS_GROUNDING, also invoke `suggest-quantification` skill:
-       - Args: resume_file_path=<absolute path to current resume>
-       - Capture output as quantification_results
+═══════════════════════════════════════════════════════════════════════════════
+CHECKPOINT: Before proceeding to Phase 3, verify you have collected:
+═══════════════════════════════════════════════════════════════════════════════
+- [ ] vague_claims_results (from Skill 1) - REQUIRED
+- [ ] buzzwords_results (from Skill 2) - REQUIRED
+- [ ] ats_results (from Skill 3) - REQUIRED
+- [ ] quantification_results OR "Not run this iteration" (from Skill 4)
 
-    Combine all results into analysis_results string for Coach.
+**If any REQUIRED result is missing, you stopped prematurely. Go back and run the missing skill.**
 
-    === PHASE 3: COACHING ===
-    Update state: phase = "COACHING"
+Combine all results into analysis_results string for Coach.
 
-    Invoke Coach agent via Task tool:
-    - Provide: EVERYTHING - candidate input, resume, interviewer review, history, AND analysis_results
-    - Agent type: resume-helper:coach
+→ When ALL skills complete and checkpoint verified, IMMEDIATELY CONTINUE to Phase 3
 
-    Parse Coach's verdict and feedback
-    Update state.lastVerdict
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 3 of 4: COACHING                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update state: phase = "COACHING"                                            │
+│                                                                             │
+│ Invoke Coach agent via Task tool:                                           │
+│ - Provide: EVERYTHING - candidate input, resume, interviewer review,        │
+│   history, AND analysis_results                                             │
+│ - Agent type: resume-helper:coach                                           │
+│                                                                             │
+│ Parse Coach's verdict and feedback                                          │
+│ Update state.lastVerdict                                                    │
+│ Save iteration to history                                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-    If verdict == "READY":
-        Break loop
+**After Phase 3 completes, handle verdict and questions:**
 
-    If verdict == "BLOCKED":
-        Ask user for additional information via AskUserQuestion (HIGH priority questions)
-        Add their response to candidateInput
+1. **If verdict == "BLOCKED":**
+   - Ask user for additional information via AskUserQuestion (HIGH priority questions)
+   - Add their response to candidateInput
+   - → Then continue to EXIT CHECK below
 
-    If Coach output contains MEDIUM or HIGH priority questions (even if not BLOCKED):
-        Present questions to user via AskUserQuestion
-        Frame as: "The Coach has some questions that would strengthen your resume:"
-        Add their responses to candidateInput for next iteration
-        (User can skip questions they don't want to answer)
+2. **If Coach output contains MEDIUM or HIGH priority questions (even if not BLOCKED):**
+   - Present questions to user via AskUserQuestion
+   - Frame as: "The Coach has some questions that would strengthen your resume:"
+   - Add their responses to candidateInput for next iteration
+   - (User can skip questions they don't want to answer)
+   - → Then continue to EXIT CHECK below
 
-    Save iteration to history
-```
+3. **If no questions to ask:**
+   - → Continue directly to EXIT CHECK below
+
+═══════════════════════════════════════════════════════════════════════════════
+EXIT CHECK: Evaluate whether to continue looping or finalize
+═══════════════════════════════════════════════════════════════════════════════
+
+Check these conditions IN ORDER:
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CONDITION 1: Is verdict "READY"?                                            │
+│                                                                             │
+│ If YES → EXIT LOOP, proceed to Step 6: Finalize                             │
+│ If NO  → Continue to Condition 2                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CONDITION 2: Has iteration reached maxIterations?                           │
+│                                                                             │
+│ If YES → EXIT LOOP, proceed to Step 6: Finalize                             │
+│ If NO  → Continue to NEXT ITERATION                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ NEXT ITERATION: Neither exit condition met                                  │
+│                                                                             │
+│ **You MUST loop back to PHASE 1: WRITING to start the next iteration.**     │
+│                                                                             │
+│ → LOOP BACK to "ITERATION START" above and repeat Phases 1→2→2.5→3          │
+└─────────────────────────────────────────────────────────────────────────────┘
 
 ## Step 6: Finalize
 
-When loop completes (READY verdict or max iterations):
+**You have exited the loop. Now complete ALL 4 finalization steps in sequence.**
 
-1. Update state:
-   ```json
-   {
-     "active": false,
-     "phase": "COMPLETE",
-     "completedAt": "<ISO timestamp>",
-     "stoppedReason": "ready" | "max_iterations"
-   }
-   ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FINALIZE STEP 1 of 4: Update State                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update .resume-state.json with:                                             │
+│   {                                                                         │
+│     "active": false,                                                        │
+│     "phase": "COMPLETE",                                                    │
+│     "completedAt": "<ISO timestamp>",                                       │
+│     "stoppedReason": "ready" | "max_iterations"                             │
+│   }                                                                         │
+│                                                                             │
+│ → When complete, CONTINUE to Finalize Step 2                                │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-2. Write final resume to output path
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FINALIZE STEP 2 of 4: Write Final Resume                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Write the final resume to the output path (default: ./resume_final.md)      │
+│                                                                             │
+│ → When complete, CONTINUE to Finalize Step 3                                │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-3. Write interview prep document to `interview_prep.md`
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FINALIZE STEP 3 of 4: Write Interview Prep                                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Write interview prep document to `interview_prep.md`                        │
+│                                                                             │
+│ → When complete, CONTINUE to Finalize Step 4                                │
+└─────────────────────────────────────────────────────────────────────────────┘
 
-4. Display summary:
-   ```
-   ═══════════════════════════════════════════════════
-   RESUME DEVELOPMENT COMPLETE
-   ═══════════════════════════════════════════════════
-
-   Iterations: X
-   Final Verdict: [verdict]
-
-   Output Files:
-   - Resume: [output path]
-   - Interview Prep: interview_prep.md
-
-   Key Improvements Made:
-   - [Summary of changes across iterations]
-
-   Interview Questions to Prepare:
-   - [Top questions from Interviewer]
-   ═══════════════════════════════════════════════════
-   ```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ FINALIZE STEP 4 of 4: Display Summary                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Display the completion summary to the user:                                 │
+│                                                                             │
+│   ═══════════════════════════════════════════════════                       │
+│   RESUME DEVELOPMENT COMPLETE                                               │
+│   ═══════════════════════════════════════════════════                       │
+│                                                                             │
+│   Iterations: X                                                             │
+│   Final Verdict: [verdict]                                                  │
+│                                                                             │
+│   Output Files:                                                             │
+│   - Resume: [output path]                                                   │
+│   - Interview Prep: interview_prep.md                                       │
+│                                                                             │
+│   Key Improvements Made:                                                    │
+│   - [Summary of changes across iterations]                                  │
+│                                                                             │
+│   Interview Questions to Prepare:                                           │
+│   - [Top questions from Interviewer]                                        │
+│   ═══════════════════════════════════════════════════                       │
+│                                                                             │
+│ → DONE. Resume development loop complete.                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
 
 ## Agent Invocation Templates
 

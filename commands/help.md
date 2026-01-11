@@ -26,12 +26,14 @@ COMMANDS
   Options:
     --job <file>          Path to job description for targeting
     --max-iterations <n>  Maximum improvement cycles (default: 5)
+    --max-pages <n>       Maximum pages: 1, 2, or 3 (default: 1, prompts for confirmation)
     --output <file>       Output path for final resume (default: ./resume_final.md)
     --format <type>       Resume format: traditional, modern, ats (default: ats)
 
   Examples:
     /resume-helper:resume-loop "experience.md"
     /resume-helper:resume-loop "exp.md" --job "job.md"
+    /resume-helper:resume-loop "exp.md" --job "jd.md" --max-pages 2
     /resume-helper:resume-loop "exp.md" --job "jd.md" --max-iterations 3
 
 ────────────────────────────────────────────────────────────────────
@@ -68,6 +70,9 @@ QUICK START
 2. Run: /resume-helper:resume-loop "experience.md"
 3. Answer the Coach's clarifying questions
 4. Get resume_final.md and interview_prep.md
+
+NOTE: Default is 1-page resume. Use --max-pages 2 or --max-pages 3 for longer resumes.
+      Recommended: 1 page (<10 yrs exp), 2 pages (10-20 yrs), 3 pages (executives/academics)
 
 ────────────────────────────────────────────────────────────────────
 ```

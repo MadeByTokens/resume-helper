@@ -1,6 +1,6 @@
 ---
 description: Start adversarial resume development loop with three agents
-allowed-tools: Write, Read, Glob, Grep, Edit, Bash, Task, TodoWrite, AskUserQuestion
+allowed-tools: Write, Read, Glob, Grep, Edit, Bash, Task, TodoWrite, AskUserQuestion, Skill
 ---
 
 # Resume Development Loop
@@ -19,6 +19,7 @@ Extract from user's command:
 - `experience_path`: Path to candidate's experience/background file (REQUIRED)
 - `--job` or `--jd`: Path to job description file (OPTIONAL)
 - `--max-iterations`: Maximum loop iterations (DEFAULT: 5)
+- `--max-pages`: Maximum page length - 1, 2, or 3 (DEFAULT: 1, requires confirmation)
 - `--output`: Output path for final resume (DEFAULT: ./resume_final.md)
 - `--format`: Resume format - traditional, modern, ats (DEFAULT: ats)
 
@@ -26,6 +27,7 @@ Example commands:
 ```
 /resume-loop "my_experience.md"
 /resume-loop "experience.md" --job "job_description.md"
+/resume-loop "exp.md" --job "jd.md" --max-pages 2
 /resume-loop "exp.md" --job "jd.md" --max-iterations 3 --output "./my_resume.md"
 ```
 
@@ -59,6 +61,53 @@ If `--job` was provided:
    - **STOP** - do not continue
 5. Display: "✅ Job description loaded (`<N>` characters)"
 
+## Step 2.5: Confirm Page Limit
+
+Page-to-word conversion:
+- 1 page = 450 words maximum
+- 2 pages = 900 words maximum
+- 3 pages = 1350 words maximum
+
+### If `--max-pages` was NOT explicitly provided:
+
+1. Display:
+   ```
+   ════════════════════════════════════════════════════
+   PAGE LIMIT CONFIGURATION
+   ════════════════════════════════════════════════════
+
+   No --max-pages specified. The default is 1 page (~450 words).
+
+   Recommended page limits:
+     1 page  = ~450 words  (recommended for <10 years experience)
+     2 pages = ~900 words  (recommended for 10-20 years experience)
+     3 pages = ~1350 words (recommended for executives/academics)
+
+   ════════════════════════════════════════════════════
+   ```
+
+2. Use AskUserQuestion tool to ask:
+   - Question: "Would you like to proceed with the 1-page default, or specify a different limit?"
+   - Options: "1 page (default)", "2 pages", "3 pages"
+
+3. Parse response and set:
+   - maxPages = 1, 2, or 3 based on selection
+   - maxWords = 450, 900, or 1350 respectively
+
+4. Display confirmation:
+   ```
+   ✅ Using [N]-page limit (~[WORDS] words maximum)
+   ```
+
+### If `--max-pages` was explicitly provided:
+
+1. Validate the value is 1, 2, or 3
+2. If invalid:
+   - Display: "❌ Invalid --max-pages value: `<value>`. Must be 1, 2, or 3."
+   - **STOP** - do not continue
+3. Set maxWords based on maxPages (450, 900, or 1350)
+4. Display: "✅ Page limit set: [N] pages (~[WORDS] words maximum)"
+
 ## Step 3: Check for Existing Loop
 
 Read `.resume-state.json` if it exists:
@@ -82,6 +131,8 @@ Create `.resume-state.json`:
   },
   "options": {
     "maxIterations": 5,
+    "maxPages": 1,
+    "maxWords": 450,
     "format": "ats",
     "outputPath": "./resume_final.md"
   },
@@ -121,11 +172,34 @@ while iteration < maxIterations AND lastVerdict != "READY":
 
     Save Interviewer's review to state.history[iteration].interviewerReview
 
+    === PHASE 2.5: ANALYSIS ===
+    Update state: phase = "ANALYZING"
+
+    Run analysis skills BEFORE invoking Coach (these run in plugin context with proper file access):
+
+    1. Invoke `analyze-vague-claims` skill:
+       - Args: resume_file_path=<absolute path to current resume>
+       - Capture output as vague_claims_results
+
+    2. Invoke `analyze-buzzwords` skill:
+       - Args: resume_file_path=<absolute path to current resume>
+       - Capture output as buzzwords_results
+
+    3. Invoke `check-ats-compatibility` skill:
+       - Args: resume_file_path=<absolute path>, job_description_path=<path or "none">, max_pages=<N>
+       - Capture output as ats_results
+
+    4. If iteration > 1 or previous verdict was NEEDS_GROUNDING, also invoke `suggest-quantification` skill:
+       - Args: resume_file_path=<absolute path to current resume>
+       - Capture output as quantification_results
+
+    Combine all results into analysis_results string for Coach.
+
     === PHASE 3: COACHING ===
     Update state: phase = "COACHING"
 
     Invoke Coach agent via Task tool:
-    - Provide: EVERYTHING - candidate input, resume, interviewer review, history
+    - Provide: EVERYTHING - candidate input, resume, interviewer review, history, AND analysis_results
     - Agent type: resume-helper:coach
 
     Parse Coach's verdict and feedback
@@ -242,25 +316,35 @@ You are the Coach agent. Synthesize the Writer's resume and Interviewer's review
 ## Iteration History
 <previous iterations summary>
 
-## Resume File Path (for tools)
-<path to the current resume file, e.g., "resume_draft.md">
+## Page/Word Limit
+Maximum: [maxPages] pages ([maxWords] words)
 
-## Job Description File Path (for tools, if provided)
-<path to job description file or "Not provided">
+## Analysis Results
+
+The following analysis was performed on the current resume:
+
+### Vague Claims Analysis
+<vague_claims_results>
+
+### Buzzwords Analysis
+<buzzwords_results>
+
+### ATS Compatibility
+<ats_results>
+
+### Quantification Suggestions (if available)
+<quantification_results or "Not run this iteration">
+
+---
 
 Follow your agent instructions to:
-1. **FIRST: Run all helper tools using Bash** to get objective analysis:
-   - python tools/detect_vague_claims.py <resume_file_path> --json
-   - python tools/detect_buzzwords.py <resume_file_path> --json
-   - python tools/ats_compatibility.py <resume_file_path> <jd_file_path> --json (if JD provided)
-   - python tools/quantification_helper.py <resume_file_path> --json (if claims need specifics)
-2. Incorporate tool findings into your assessment
-3. Verify claims against candidate input
-4. Translate interviewer concerns into writer guidance
-5. **ALWAYS include 2-3+ questions for the candidate** with priority levels (HIGH/MEDIUM/LOW)
+1. Incorporate the analysis results above into your Tool Analysis Results table
+2. Verify claims against candidate input
+3. Translate interviewer concerns into writer guidance
+4. **ALWAYS include 2-3+ questions for the candidate** with priority levels (HIGH/MEDIUM/LOW)
    - Even when the resume is improving, there's always something that could be more specific
-6. Issue a verdict: READY, NEEDS_STRENGTHENING, NEEDS_GROUNDING, or BLOCKED
-   - Do NOT issue READY if high-severity vague claims remain or ATS score < 80
+5. Issue a verdict: READY, NEEDS_STRENGTHENING, NEEDS_GROUNDING, or BLOCKED
+   - Do NOT issue READY if high-severity vague claims remain, ATS score < 80, or resume exceeds page limit
 ```
 
 ## Error Handling

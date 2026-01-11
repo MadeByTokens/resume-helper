@@ -53,6 +53,9 @@ IDEAL_MAX_WORDS = 800
 # Minimum bullet points expected
 MIN_BULLET_POINTS = 5
 
+# Page-to-word limits for resume length enforcement
+PAGE_WORD_LIMITS = {1: 450, 2: 900, 3: 1350}
+
 
 # =============================================================================
 # DATA CLASSES
@@ -205,8 +208,18 @@ def check_sections(content: str) -> Tuple[List[str], List[str]]:
     return sorted(found), sorted(missing)
 
 
-def check_ats_issues(content: str) -> List[ATSIssue]:
-    """Check for common ATS compatibility issues."""
+def check_ats_issues(content: str, max_pages: Optional[int] = None) -> Tuple[List[ATSIssue], int]:
+    """
+    Check for common ATS compatibility issues.
+
+    Args:
+        content: Resume content
+        max_pages: Optional page limit (1, 2, or 3). If provided, uses page-based
+                   word limits. If None, uses generic word count thresholds.
+
+    Returns:
+        Tuple of (list of issues, word count)
+    """
     issues: List[ATSIssue] = []
     lines = content.split('\n')
 
@@ -295,20 +308,27 @@ def check_ats_issues(content: str) -> List[ATSIssue]:
 
     # Check resume length (word count)
     words = len(re.findall(r'\b\w+\b', content))
-    if words < MIN_WORDS:
-        issues.append(ATSIssue(
-            category="content",
-            issue=f"Resume too short ({words} words)",
-            suggestion=f"Add more detail - aim for {IDEAL_MIN_WORDS}-{IDEAL_MAX_WORDS} words",
-            severity="medium"
-        ))
-    elif words > MAX_WORDS:
-        issues.append(ATSIssue(
-            category="content",
-            issue=f"Resume may be too long ({words} words)",
-            suggestion=f"Consider condensing - aim for {IDEAL_MIN_WORDS}-{IDEAL_MAX_WORDS} words for most roles",
-            severity="low"
-        ))
+
+    # If max_pages specified, use page-based limits
+    if max_pages is not None:
+        page_limit_issues, _ = check_page_limit(content, max_pages)
+        issues.extend(page_limit_issues)
+    else:
+        # Fall back to generic word count check
+        if words < MIN_WORDS:
+            issues.append(ATSIssue(
+                category="content",
+                issue=f"Resume too short ({words} words)",
+                suggestion=f"Add more detail - aim for {IDEAL_MIN_WORDS}-{IDEAL_MAX_WORDS} words",
+                severity="medium"
+            ))
+        elif words > MAX_WORDS:
+            issues.append(ATSIssue(
+                category="content",
+                issue=f"Resume may be too long ({words} words)",
+                suggestion=f"Consider condensing - aim for {IDEAL_MIN_WORDS}-{IDEAL_MAX_WORDS} words for most roles",
+                severity="low"
+            ))
 
     # Check for bullet points (ATS prefers them)
     bullet_count = len(re.findall(r'^[\s]*[-•*]\s', content, re.MULTILINE))
@@ -320,7 +340,54 @@ def check_ats_issues(content: str) -> List[ATSIssue]:
             severity="medium"
         ))
 
-    return issues
+    return issues, words
+
+
+def check_page_limit(content: str, max_pages: int) -> Tuple[List[ATSIssue], int]:
+    """
+    Check if resume exceeds the specified page limit.
+
+    Args:
+        content: Resume content
+        max_pages: Maximum pages allowed (1, 2, or 3)
+
+    Returns:
+        Tuple of (list of issues, word count)
+    """
+    issues: List[ATSIssue] = []
+
+    word_limit = PAGE_WORD_LIMITS.get(max_pages, 450)
+    word_count = len(re.findall(r'\b\w+\b', content))
+
+    if word_count > word_limit:
+        excess = word_count - word_limit
+        excess_percent = (excess / word_limit) * 100
+
+        # Determine severity based on how much over limit
+        if excess_percent > 20:
+            severity = "high"
+        elif excess_percent > 10:
+            severity = "medium"
+        else:
+            severity = "low"
+
+        issues.append(ATSIssue(
+            category="length",
+            issue=f"Resume exceeds {max_pages}-page limit ({word_count} words, limit is {word_limit})",
+            suggestion=f"Reduce content by ~{excess} words. Prioritize most impactful achievements for target role.",
+            severity=severity
+        ))
+
+        # Add specific guidance for significant overages
+        if excess > 100:
+            issues.append(ATSIssue(
+                category="length",
+                issue="Significant content reduction needed",
+                suggestion="Consider: removing oldest/least relevant roles, consolidating similar achievements, removing obvious skills, tightening language",
+                severity="medium"
+            ))
+
+    return issues, word_count
 
 
 def match_keywords(resume: str, keyword_matches: List[KeywordMatch]) -> List[KeywordMatch]:
@@ -419,6 +486,8 @@ def main():
     parser.add_argument("resume", help="Path to resume file")
     parser.add_argument("job_description", nargs="?", help="Path to job description file (optional)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
+    parser.add_argument("--max-pages", type=int, choices=[1, 2, 3],
+                        help="Maximum page limit (1, 2, or 3)")
     args = parser.parse_args()
 
     # Read resume
@@ -438,7 +507,7 @@ def main():
             keyword_matches = match_keywords(resume_content, keyword_matches)
 
     # Run checks
-    issues = check_ats_issues(resume_content)
+    issues, word_count = check_ats_issues(resume_content, args.max_pages)
     sections_found, sections_missing = check_sections(resume_content)
 
     # Add missing section issues
@@ -454,9 +523,17 @@ def main():
 
     # Output
     if args.json:
+        # Calculate page limit info
+        max_words = PAGE_WORD_LIMITS.get(args.max_pages) if args.max_pages else None
+        within_limit = word_count <= max_words if max_words else None
+
         output = {
             "file": args.resume,
             "score": round(score, 2),
+            "word_count": word_count,
+            "max_pages": args.max_pages,
+            "max_words": max_words,
+            "within_limit": within_limit,
             "sections_found": sections_found,
             "sections_missing": sections_missing,
             "issues": [
@@ -498,6 +575,15 @@ def main():
         print(f"ATS Compatibility Analysis: {args.resume}")
         print(f"{'=' * 50}")
         print(f"ATS Score: {score:.0%}")
+        print()
+
+        # Show word count and page limit info
+        if args.max_pages:
+            max_words = PAGE_WORD_LIMITS[args.max_pages]
+            status = "WITHIN LIMIT" if word_count <= max_words else "OVER LIMIT"
+            print(f"Word Count: {word_count} / {max_words} ({args.max_pages}-page limit) - {status}")
+        else:
+            print(f"Word Count: {word_count}")
         print()
 
         print(f"Sections Found: {', '.join(sections_found) if sections_found else 'None detected'}")

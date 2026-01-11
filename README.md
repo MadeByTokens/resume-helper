@@ -74,9 +74,14 @@ Python, JavaScript, PostgreSQL, AWS
 # With job targeting
 /resume-helper:resume-loop "my_experience.md" --job "job_description.md"
 
+# With page limit (1, 2, or 3 pages)
+/resume-helper:resume-loop "my_experience.md" --job "job.md" --max-pages 2
+
 # Custom options
 /resume-helper:resume-loop "exp.md" --job "jd.md" --max-iterations 3 --output "./my_resume.md"
 ```
+
+> **Note:** Default is 1-page resume. Use `--max-pages 2` for 10-20 years experience, `--max-pages 3` for executives/academics.
 
 ### 3. Answer Coach Questions
 
@@ -108,6 +113,7 @@ The Coach will ask clarifying questions to strengthen your resume:
 |--------|---------|-------------|
 | `--job <file>` | none | Path to job description for targeting |
 | `--max-iterations` | 5 | Maximum improvement cycles |
+| `--max-pages` | 1 | Maximum resume pages: 1, 2, or 3 (prompts for confirmation if not specified) |
 | `--output <file>` | `./resume_final.md` | Output path for final resume |
 | `--format` | `ats` | Format: `traditional`, `modern`, `ats` |
 
@@ -147,18 +153,18 @@ The Interviewer never sees the candidate's raw input—just like a real hiring m
 
 ---
 
-## Helper Tools
+## Analysis Skills
 
-The Coach runs Python analysis tools to provide objective metrics:
+Before each coaching phase, the system runs analysis skills that provide objective metrics:
 
-| Tool | Purpose |
-|------|---------|
-| `detect_vague_claims.py` | Flags unquantified language ("led team", "improved X") |
-| `detect_buzzwords.py` | Identifies corporate jargon with clearer alternatives |
-| `ats_compatibility.py` | Checks ATS compatibility and keyword matching |
-| `quantification_helper.py` | Suggests questions to quantify achievements |
+| Skill | Purpose |
+|-------|---------|
+| `analyze-vague-claims` | Flags unquantified language ("led team", "improved X") |
+| `analyze-buzzwords` | Identifies corporate jargon with clearer alternatives |
+| `check-ats-compatibility` | Checks ATS compatibility, keyword matching, and page limits |
+| `suggest-quantification` | Suggests questions to quantify achievements |
 
-All tools support `--json` output and require no external dependencies.
+These skills wrap Python tools in the `tools/` directory. The results are passed to the Coach agent for interpretation. All underlying tools support `--json` output and require no external dependencies beyond Python 3.8+.
 
 ---
 
@@ -188,7 +194,9 @@ All tools support `--json` output and require no external dependencies.
 
 **Loop not converging** - Check `/resume-helper:resume-status` for outstanding concerns. The Coach may need more information from you.
 
-**Python tools not running** - Ensure Python 3.8+ is available: `python3 --version`
+**Analysis skills not running** - Ensure Python 3.8+ is available: `python3 --version`
+
+**Resume too long** - Use `--max-pages 2` or `--max-pages 3` for longer resumes. The Coach will block completion if the resume exceeds the page limit.
 
 **File errors** - Use quoted paths for spaces, ensure files are UTF-8 text (not PDF).
 

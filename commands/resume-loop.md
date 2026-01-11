@@ -31,9 +31,33 @@ Example commands:
 
 ## Step 2: Validate Input Files
 
-1. Check that experience file exists and read its contents
-2. If job description provided, read its contents
-3. If files don't exist, ask user to provide the correct path or paste content directly
+### Experience File (required)
+
+1. Display: "📄 Loading experience from: `<experience_path>`"
+2. Attempt to read the file using the Read tool
+3. **If the file does not exist or cannot be read:**
+   - Display: "❌ Experience file not found: `<experience_path>`"
+   - Display: "Please check the path and try again."
+   - **STOP** - do not continue
+4. **If the file is empty:**
+   - Display: "❌ Experience file is empty: `<experience_path>`"
+   - **STOP** - do not continue
+5. Display: "✅ Experience loaded (`<N>` characters)"
+
+### Job Description File (optional)
+
+If `--job` was provided:
+
+1. Display: "📄 Loading job description from: `<job_path>`"
+2. Attempt to read the file using the Read tool
+3. **If the file does not exist or cannot be read:**
+   - Display: "❌ Job description file not found: `<job_path>`"
+   - Display: "Please check the path and try again."
+   - **STOP** - do not continue
+4. **If the file is empty:**
+   - Display: "❌ Job description file is empty: `<job_path>`"
+   - **STOP** - do not continue
+5. Display: "✅ Job description loaded (`<N>` characters)"
 
 ## Step 3: Check for Existing Loop
 

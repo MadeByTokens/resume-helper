@@ -87,6 +87,7 @@ The Coach will ask clarifying questions to strengthen your resume:
 
 | Command | Description |
 |---------|-------------|
+| `/resume-helper:help` | Show all commands and options |
 | `/resume-helper:resume-loop` | Main command - starts the adversarial development loop |
 | `/resume-helper:resume-status` | Check status of active or completed loop |
 | `/resume-helper:cancel-resume` | Cancel active loop (preserves progress) |

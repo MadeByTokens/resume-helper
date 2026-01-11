@@ -25,8 +25,17 @@ The key insight: **information isolation**. The Interviewer only sees the resume
 
 ## Installation
 
+### Option A: Via MadeByTokens Marketplace (Recommended)
+
 See https://github.com/MadeByTokens/claude-code-plugins-madebytokens
 
+### Option B: Direct Install
+
+```bash
+# Clone and install directly
+git clone https://github.com/MadeByTokens/resume-helper.git
+/plugin install ./resume-helper
+```
 ---
 
 ## Quick Start

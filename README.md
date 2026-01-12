@@ -32,12 +32,32 @@ Two key insights:
 
 See https://github.com/MadeByTokens/claude-code-plugins-madebytokens
 
-### Option B: Direct Install
+### Option B: CLI Flag at Launch
 
 ```bash
-# Clone and install directly
+# Clone the repo
 git clone https://github.com/MadeByTokens/resume-helper.git
-/plugin install ./resume-helper
+
+# Launch Claude Code with the plugin directory
+claude --plugin-dir /path/to/resume-helper
+```
+
+### Option C: Manual Settings Configuration
+
+Clone the repo, then add it to your Claude Code settings file:
+
+**User scope** (`~/.claude/settings.json`):
+```json
+{
+  "pluginDirs": ["/path/to/resume-helper"]
+}
+```
+
+**Project scope** (`.claude/settings.json` in your project):
+```json
+{
+  "pluginDirs": ["/path/to/resume-helper"]
+}
 ```
 ---
 

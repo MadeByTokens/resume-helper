@@ -75,4 +75,31 @@ NOTE: Default is 1-page resume. Use --max-pages 2 or --max-pages 3 for longer re
       Recommended: 1 page (<10 yrs exp), 2 pages (10-20 yrs), 3 pages (executives/academics)
 
 ────────────────────────────────────────────────────────────────────
+
+HOW IT WORKS
+────────────────────────────────────────────────────────────────────
+
+The loop uses 4 agents with different roles:
+
+  Writer        → Creates/improves the resume (advocates for you)
+  Fact-Checker  → Verifies claims against your input (catches hallucinations)
+  Interviewer   → Reviews like a hiring manager (finds weaknesses)
+  Coach         → Synthesizes feedback and asks clarifying questions
+
+Flow per iteration:
+  1. Writer creates resume draft
+  2. Fact-Checker verifies all claims (blocks hallucinations)
+  3. Interviewer reviews skeptically
+  4. Analysis agents check for issues (parallel)
+  5. Coach synthesizes and provides guidance
+
+The Fact-Checker ensures every claim in your resume can be traced back
+to your original input. If the Writer invents details, they're caught
+before reaching the Interviewer.
+
+IMPORTANT: The Writer and Fact-Checker read your original experience
+file fresh from disk each time (not from memory). This prevents
+context corruption in long conversations.
+
+────────────────────────────────────────────────────────────────────
 ```

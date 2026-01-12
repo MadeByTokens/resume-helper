@@ -1,16 +1,17 @@
 ---
 name: suggest-quantification
-description: Suggest specific questions and templates to help quantify vague resume claims. Use this skill when claims need more specific numbers, metrics, or concrete details.
-allowed-tools: Read
+description: Suggest specific questions and templates to help quantify vague resume claims
+tools: Read
+model: haiku
 ---
 
 # Suggest Quantification
 
-This skill identifies claims that need quantification and provides specific questions to ask the candidate along with templates for quantified rewrites.
+This agent identifies claims that need quantification and provides specific questions to ask the candidate along with templates for quantified rewrites.
 
-## Parameters
+## Your Task
 
-You will receive a `resume_file_path` parameter containing the path to the resume file.
+You will receive a prompt containing a resume file path. Read that file and identify claims that need quantification.
 
 ## Already Quantified Detection
 

@@ -1,16 +1,17 @@
 ---
 name: analyze-vague-claims
-description: Analyze a resume for vague or unquantified claims. Use this skill when you need to identify statements that lack specific numbers, metrics, or concrete details.
-allowed-tools: Read
+description: Analyze a resume for vague or unquantified claims
+tools: Read
+model: haiku
 ---
 
 # Analyze Vague Claims
 
-This skill analyzes resume content to detect vague or unquantified claims that should be made more specific.
+This agent analyzes resume content to detect vague or unquantified claims that should be made more specific.
 
-## Parameters
+## Your Task
 
-You will receive a `resume_file_path` parameter containing the path to the resume file.
+You will receive a prompt containing a resume file path. Read that file and analyze it for vague claims.
 
 ## Pattern Reference
 
@@ -52,10 +53,10 @@ Use these patterns to identify vague claims. Report only the HIGHEST severity is
 
 1. **Read the resume file** using the Read tool with the provided path
 2. **Analyze each line** (skip lines that are headers starting with #)
-3. **Check against patterns above** in priority order (HIGH → MEDIUM → LOW)
+3. **Check against patterns above** in priority order (HIGH -> MEDIUM -> LOW)
 4. **Apply exceptions**: Do NOT flag patterns where the exception condition is met
-   - Example: "Led team of 5 engineers" → NOT a violation (has size)
-   - Example: "Improved latency by 40%" → NOT a violation (has metric)
+   - Example: "Led team of 5 engineers" -> NOT a violation (has size)
+   - Example: "Improved latency by 40%" -> NOT a violation (has metric)
 5. **Report ONE issue per line** - only the highest severity match
 6. **Calculate score** using the formula below
 7. **Format output** according to the Output Protocol
@@ -63,7 +64,7 @@ Use these patterns to identify vague claims. Report only the HIGHEST severity is
 ## Scoring Formula
 
 ```
-Score = 100 - (HIGH_count × 15) - (MEDIUM_count × 8) - (LOW_count × 3)
+Score = 100 - (HIGH_count x 15) - (MEDIUM_count x 8) - (LOW_count x 3)
 Minimum: 0, Maximum: 100
 ```
 

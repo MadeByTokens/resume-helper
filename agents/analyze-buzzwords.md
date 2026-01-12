@@ -1,16 +1,17 @@
 ---
 name: analyze-buzzwords
-description: Analyze a resume for overused buzzwords and corporate jargon. Use this skill to identify empty phrases that should be replaced with concrete, specific language.
-allowed-tools: Read
+description: Analyze a resume for overused buzzwords and corporate jargon
+tools: Read
+model: haiku
 ---
 
 # Analyze Buzzwords
 
-This skill analyzes resume content to detect overused buzzwords and corporate jargon that reduce clarity and impact.
+This agent analyzes resume content to detect overused buzzwords and corporate jargon that reduce clarity and impact.
 
-## Parameters
+## Your Task
 
-You will receive a `resume_file_path` parameter containing the path to the resume file.
+You will receive a prompt containing a resume file path. Read that file and analyze it for buzzwords.
 
 ## Buzzword Categories
 
@@ -117,7 +118,7 @@ Do NOT flag these buzzwords when they appear in appropriate technical or financi
 ## Scoring Formula
 
 ```
-Score = 100 - (HIGH_count × 15) - (MEDIUM_count × 8) - (LOW_count × 3)
+Score = 100 - (HIGH_count x 15) - (MEDIUM_count x 8) - (LOW_count x 3)
 Minimum: 0, Maximum: 100
 ```
 

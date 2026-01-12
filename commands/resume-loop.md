@@ -1,6 +1,6 @@
 ---
 description: Start adversarial resume development loop with three agents
-allowed-tools: Write, Read, Glob, Grep, Edit, Bash, Task, TodoWrite, AskUserQuestion, Skill
+allowed-tools: Write, Read, Glob, Grep, Edit, Bash, Task, TodoWrite, AskUserQuestion
 ---
 
 # Resume Development Loop
@@ -139,6 +139,7 @@ Create `.resume-state.json`:
   "currentResume": null,
   "history": [],
   "lastVerdict": null,
+  "factCheckAttempts": 0,
   "interviewQuestions": [],
   "startedAt": "<ISO timestamp>",
   "completedAt": null,
@@ -148,7 +149,7 @@ Create `.resume-state.json`:
 
 ## Step 5: Main Loop
 
-**CRITICAL: This is an ITERATIVE LOOP. You MUST repeat Phases 1→2→2.5→3 until exit condition is met.**
+**CRITICAL: This is an ITERATIVE LOOP. You MUST repeat Phases 1→1.5→2→3→4 until exit condition is met.**
 
 Exit conditions (check AFTER each complete iteration):
 - `lastVerdict == "READY"` → Exit loop, proceed to Step 6
@@ -157,26 +158,90 @@ Exit conditions (check AFTER each complete iteration):
 **If neither exit condition is met, you MUST start the next iteration.**
 
 ═══════════════════════════════════════════════════════════════════════════════
-ITERATION START: Increment iteration counter, then execute Phases 1, 2, 2.5, 3
+ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5, 3
 ═══════════════════════════════════════════════════════════════════════════════
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 1 of 4: WRITING                                                       │
+│ PHASE 1 of 5: WRITING                                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Update state: phase = "WRITING"                                             │
 │                                                                             │
 │ Invoke Resume Writer agent via Task tool:                                   │
-│ - Provide: candidate experience, job description (if any), coach feedback   │
-│ - DO NOT provide: interviewer's raw feedback                                │
+│ - Provide: experience FILE PATH (not content!), job description, coach      │
+│   feedback, current resume (if iterating), page/word limits                 │
+│ - The Writer will READ the experience file fresh using Read tool            │
+│ - DO NOT provide: interviewer's raw feedback, experience content in prompt  │
 │ - Agent type: resume-helper:resume-writer                                   │
 │                                                                             │
-│ Save Writer's output to state.currentResume                                 │
+│ Save Writer's output to state.currentResume and to resume_draft.md          │
 │                                                                             │
-│ → When complete, IMMEDIATELY CONTINUE to Phase 2                            │
+│ → When complete, IMMEDIATELY CONTINUE to Phase 1.5                          │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 2 of 4: REVIEWING                                                     │
+│ PHASE 1.5 of 5: FACT-CHECK (Hallucination Detection)                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Update state: phase = "FACT_CHECK"                                          │
+│                                                                             │
+│ **This phase catches hallucinations before the resume reaches the           │
+│ Interviewer. The Fact Checker reads the original file fresh.**              │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+**Initialize fact-check attempt counter:** If not set, set `factCheckAttempts = 0`
+
+**Invoke Fact Checker agent via Task tool:**
+- Agent type: `resume-helper:fact-checker`
+- Prompt:
+  ```
+  Verify the resume against the candidate's original input.
+
+  Experience file path: [state.candidateInput.experiencePath]
+  Resume file path: resume_draft.md
+
+  Read BOTH files fresh using the Read tool. Do NOT rely on context.
+  Check every specific claim in the resume for a source in the original input.
+
+  Follow your instructions and output a Fact Check Report with verdict PASS or FAIL.
+  ```
+
+**Handle Fact Checker verdict:**
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ IF VERDICT == "PASS":                                                       │
+│                                                                             │
+│ Display: "✅ Fact check passed. No hallucinations detected."                │
+│ Reset: factCheckAttempts = 0                                                │
+│ → CONTINUE to Phase 2: REVIEWING                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ IF VERDICT == "FAIL":                                                       │
+│                                                                             │
+│ Increment: factCheckAttempts += 1                                           │
+│ Display: "❌ Fact check failed. Hallucinations detected (attempt           │
+│          [factCheckAttempts]/3)"                                            │
+│                                                                             │
+│ Display the list of hallucinations from the Fact Checker's report.          │
+│                                                                             │
+│ IF factCheckAttempts < 3:                                                   │
+│   - Send hallucination list back to Writer as feedback                      │
+│   - → RETURN to Phase 1: WRITING (retry with feedback)                      │
+│                                                                             │
+│ IF factCheckAttempts >= 3:                                                  │
+│   - Display: "⚠️ Writer failed fact-check 3 times. Escalating to user."    │
+│   - Use AskUserQuestion to show hallucinations and ask user:                │
+│     "The Writer keeps adding details not in your input. Options:"           │
+│     1. "Provide additional details" (user adds info to candidateInput)      │
+│     2. "Remove the hallucinated claims" (instruct Writer to use vague       │
+│        language)                                                            │
+│     3. "Accept current resume anyway" (proceed with warnings)               │
+│   - Handle user's choice and proceed accordingly                            │
+│   - Reset: factCheckAttempts = 0                                            │
+│   - → Based on choice: RETURN to Phase 1 or CONTINUE to Phase 2             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2 of 5: REVIEWING                                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Update state: phase = "REVIEWING"                                           │
 │                                                                             │
@@ -187,83 +252,74 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 2, 2.5, 3
 │                                                                             │
 │ Save Interviewer's review to state.history[iteration].interviewerReview     │
 │                                                                             │
-│ → When complete, IMMEDIATELY CONTINUE to Phase 2.5                          │
+│ → When complete, IMMEDIATELY CONTINUE to Phase 3                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 2.5 of 4: ANALYSIS                                                    │
+│ PHASE 3 of 5: ANALYSIS                                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Update state: phase = "ANALYZING"                                           │
 │                                                                             │
-│ **CRITICAL: You MUST run ALL analysis skills below in sequence.**           │
-│ **Do NOT stop after the first skill. Run ALL 4 skills (3 required + 1       │
-│ conditional), THEN continue to Phase 3.**                                   │
+│ **Run analysis agents IN PARALLEL using Task tool for faster execution.**   │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-Run these 4 skills in order (3 required + 1 conditional):
+**DISPLAY THIS MESSAGE TO USER:** "🔄 ANALYSIS PHASE: Running analysis agents in parallel..."
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ SKILL 1 of 4: analyze-vague-claims                                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Args: resume_file_path=<absolute path to current resume>                    │
-│ Save output to: vague_claims_results                                        │
-│                                                                             │
-│ → When complete, IMMEDIATELY CONTINUE to Skill 2                            │
-└─────────────────────────────────────────────────────────────────────────────┘
+**CRITICAL: Launch ALL applicable Task agents in a SINGLE message (parallel execution).**
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ SKILL 2 of 4: analyze-buzzwords                                             │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Args: resume_file_path=<absolute path to current resume>                    │
-│ Save output to: buzzwords_results                                           │
-│                                                                             │
-│ → When complete, IMMEDIATELY CONTINUE to Skill 3                            │
-└─────────────────────────────────────────────────────────────────────────────┘
+Determine which agents to run:
+- **ALWAYS run:** analyze-vague-claims, analyze-buzzwords, check-ats-compatibility
+- **CONDITIONALLY run:** suggest-quantification (ONLY if iteration > 1 OR lastVerdict == NEEDS_GROUNDING)
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ SKILL 3 of 4: check-ats-compatibility                                       │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Args: resume_file_path=<absolute path to current resume>                    │
-│       job_description_path=<path or "none">                                 │
-│       max_pages=<N>                                                         │
-│ Save output to: ats_results                                                 │
-│                                                                             │
-│ → When complete, IMMEDIATELY CONTINUE to Skill 4 (or skip if condition not  │
-│   met, then proceed to CHECKPOINT)                                          │
-└─────────────────────────────────────────────────────────────────────────────┘
+**IMPORTANT: Use these values from state for all prompts:**
+- Resume file: Always use `resume_draft.md` (the file Writer saves to)
+- Job description CONTENT: Use `state.candidateInput.jobDescription` (already loaded)
+- Max pages: Use `state.options.maxPages`
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ SKILL 4 of 4: suggest-quantification (CONDITIONAL)                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│ Condition: Run ONLY if iteration > 1 OR lastVerdict == NEEDS_GROUNDING      │
-│ Args: resume_file_path=<absolute path to current resume>                    │
-│ Save output to: quantification_results                                      │
-│                                                                             │
-│ → When complete (or skipped), PROCEED to CHECKPOINT below                   │
-└─────────────────────────────────────────────────────────────────────────────┘
+**Launch these Task agents in parallel (single message, multiple Task tool calls):**
 
-═══════════════════════════════════════════════════════════════════════════════
-CHECKPOINT: Before proceeding to Phase 3, verify you have collected:
-═══════════════════════════════════════════════════════════════════════════════
-- [ ] vague_claims_results (from Skill 1) - REQUIRED
-- [ ] buzzwords_results (from Skill 2) - REQUIRED
-- [ ] ats_results (from Skill 3) - REQUIRED
-- [ ] quantification_results OR "Not run this iteration" (from Skill 4)
+**[AGENT 1]** Task with subagent_type: `resume-helper:analyze-vague-claims`
+- Prompt: "Analyze the resume at resume_draft.md for vague claims. Follow your instructions and output the analysis."
+- Save output to: vague_claims_results
 
-**If any REQUIRED result is missing, you stopped prematurely. Go back and run the missing skill.**
+**[AGENT 2]** Task with subagent_type: `resume-helper:analyze-buzzwords`
+- Prompt: "Analyze the resume at resume_draft.md for buzzwords. Follow your instructions and output the analysis."
+- Save output to: buzzwords_results
+
+**[AGENT 3]** Task with subagent_type: `resume-helper:check-ats-compatibility`
+- Prompt: Include the following in your prompt:
+  ```
+  Check ATS compatibility for the resume at resume_draft.md.
+  Max pages: [maxPages from state.options.maxPages]
+
+  Job Description (for keyword matching):
+  [Paste the CONTENT from state.candidateInput.jobDescription here, or "No job description provided" if null]
+
+  Follow your instructions and output the analysis.
+  ```
+- Save output to: ats_results
+
+**[AGENT 4 - CONDITIONAL]** Task with subagent_type: `resume-helper:suggest-quantification`
+- Only include this Task if: iteration > 1 OR lastVerdict == NEEDS_GROUNDING
+- Prompt: "Suggest quantification improvements for the resume at resume_draft.md. Follow your instructions and output the suggestions."
+- Save output to: quantification_results
+
+If suggest-quantification was not run, set: quantification_results = "Not run this iteration (first iteration)"
+
+**After all parallel Tasks complete, display:** "✅ All analysis complete. Proceeding to coaching phase..."
 
 Combine all results into analysis_results string for Coach.
 
-→ When ALL skills complete and checkpoint verified, IMMEDIATELY CONTINUE to Phase 3
+→ When ALL Tasks complete, IMMEDIATELY CONTINUE to Phase 4
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 3 of 4: COACHING                                                      │
+│ PHASE 4 of 5: COACHING                                                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Update state: phase = "COACHING"                                            │
 │                                                                             │
 │ Invoke Coach agent via Task tool:                                           │
-│ - Provide: EVERYTHING - candidate input, resume, interviewer review,        │
-│   history, AND analysis_results                                             │
+│ - Provide: candidate input (already verified by Fact-Checker), resume,      │
+│   interviewer review, history, AND analysis_results                         │
 │ - Agent type: resume-helper:coach                                           │
 │                                                                             │
 │ Parse Coach's verdict and feedback                                          │
@@ -271,16 +327,31 @@ Combine all results into analysis_results string for Coach.
 │ Save iteration to history                                                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-**After Phase 3 completes, handle verdict and questions:**
+**After Phase 4 completes, handle verdict and questions:**
+
+**FIRST: Show the current resume draft to the user** (so they have context for questions):
+
+Display:
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ CURRENT RESUME DRAFT (Iteration [N])                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+Then read and display the contents of `resume_draft.md` to the user.
+
+**THEN: Handle questions based on verdict:**
 
 1. **If verdict == "BLOCKED":**
    - Ask user for additional information via AskUserQuestion (HIGH priority questions)
+   - Include the resume quote from the Coach's question table so user knows what's being asked
    - Add their response to candidateInput
    - → Then continue to EXIT CHECK below
 
 2. **If Coach output contains MEDIUM or HIGH priority questions (even if not BLOCKED):**
    - Present questions to user via AskUserQuestion
    - Frame as: "The Coach has some questions that would strengthen your resume:"
+   - Include the resume quote from the Coach's question table so user knows what's being asked
    - Add their responses to candidateInput for next iteration
    - (User can skip questions they don't want to answer)
    - → Then continue to EXIT CHECK below
@@ -313,7 +384,7 @@ Check these conditions IN ORDER:
 │                                                                             │
 │ **You MUST loop back to PHASE 1: WRITING to start the next iteration.**     │
 │                                                                             │
-│ → LOOP BACK to "ITERATION START" above and repeat Phases 1→2→2.5→3          │
+│ → LOOP BACK to "ITERATION START" above and repeat Phases 1→1.5→2→3→4        │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ## Step 6: Finalize
@@ -383,8 +454,12 @@ Check these conditions IN ORDER:
 ```
 You are the Resume Writer agent. Create/improve a resume for this candidate.
 
-## Candidate Experience
-<experience content>
+## IMPORTANT: Read Experience File Fresh
+
+You MUST read the candidate's experience file using the Read tool before writing anything.
+Do NOT use any experience content from context - read the file fresh.
+
+Experience file path: [state.candidateInput.experiencePath]
 
 ## Target Job Description (if provided)
 <job description or "Not provided - create a general-purpose resume">
@@ -395,7 +470,13 @@ You are the Resume Writer agent. Create/improve a resume for this candidate.
 ## Current Resume (if iterating)
 <current resume or "Create initial resume">
 
-Follow your agent instructions to produce an updated resume.
+## Page/Word Limit
+Maximum: [maxPages] pages ([maxWords] words)
+
+Follow your agent instructions:
+1. FIRST: Read the experience file using Read tool
+2. THEN: Create/update the resume using ONLY what you read from the file
+3. Save the resume to resume_draft.md
 ```
 
 ### Interviewer Task
@@ -417,8 +498,8 @@ Follow your agent instructions to produce a thorough review.
 ```
 You are the Coach agent. Synthesize the Writer's resume and Interviewer's review.
 
-## Candidate's Original Input
-<experience content>
+## Candidate's Original Input (verified by Fact-Checker)
+<experience content from state.candidateInput.experience>
 
 ## Target Job Description
 <job description or "Not provided">

@@ -1,17 +1,19 @@
 ---
 name: check-ats-compatibility
-description: Check a resume for ATS (Applicant Tracking System) compatibility. Use this skill to verify formatting, keyword alignment with job descriptions, and page length compliance.
-allowed-tools: Read
+description: Check a resume for ATS compatibility
+tools: Read
+model: haiku
 ---
 
 # Check ATS Compatibility
 
-This skill analyzes resume content for ATS (Applicant Tracking System) compatibility, including formatting issues, keyword matching, section detection, and page limit compliance.
+This agent analyzes resume content for ATS (Applicant Tracking System) compatibility, including formatting issues, keyword matching, section detection, and page limit compliance.
 
-## Parameters
+## Your Task
 
-- `resume_file_path` (required): Path to the resume file
-- `job_description_path` (optional): Path to job description for keyword matching. Use "none" if not provided.
+You will receive a prompt containing:
+- `resume_file_path` (required): Path to the resume file (usually `resume_draft.md`)
+- `job_description` (optional): The job description CONTENT directly in the prompt (not a file path). May say "No job description provided" if not available.
 - `max_pages` (optional): Page limit (1, 2, or 3) for length checking
 
 ## Page-to-Word Limits
@@ -98,16 +100,13 @@ AWS Certified, Azure Certified, GCP Certified, PMP, CSM, CISSP, CKA, CKAD, TOGAF
 ### Degrees
 Bachelor's, Master's, PhD, MBA, B.S., M.S., B.A., M.A., Associate's, Doctorate
 
-### Security (if relevant)
-OWASP, penetration testing, encryption, OAuth, SAML, SSO, SOC 2, HIPAA, GDPR, PCI-DSS, ISO 27001, vulnerability assessment, security audit
-
 ## Instructions
 
-1. **Read the resume file** using the Read tool
-2. **If job_description_path provided and not "none"**, read that file too
+1. **Read the resume file** using the Read tool (usually `resume_draft.md`)
+2. **Check if job description was provided** in the prompt (look for "Job Description" section in your prompt - content will be included directly, NOT as a file path)
 3. **Count words** in the resume (split by whitespace)
 4. **Check page limit** if max_pages provided:
-   - Calculate: word_limit = max_pages × 450
+   - Calculate: word_limit = max_pages x 450
    - Determine if within limit, slightly over (<10%), moderately over (10-20%), or significantly over (>20%)
 5. **Detect sections** by looking for markdown headers (`#`, `##`, `###`) or ALL CAPS headings
 6. **Check for required sections** (experience, education, skills)
@@ -120,8 +119,8 @@ OWASP, penetration testing, encryption, OAuth, SAML, SSO, SOC 2, HIPAA, GDPR, PC
    - Images: look for `![`
    - Count bullet points: lines starting with `-` or `*`
 9. **Check dates:** Look for patterns like "Jan 2020", "January 2020", "01/2020", "2020-Present", "2020 - 2021"
-10. **If JD provided:**
-    - Extract keywords from JD using categories above
+10. **If JD content was provided in the prompt:**
+    - Extract keywords from the JD content using categories above
     - Check which keywords appear in resume
     - Calculate match rate
 11. **Calculate ATS score** using formula below
@@ -139,7 +138,7 @@ Deductions:
 - Each missing required section: -10 points
 
 Keyword penalty (if JD provided):
-- keyword_penalty = (1 - match_rate) × 20
+- keyword_penalty = (1 - match_rate) x 20
 - where match_rate = matched_keywords / total_keywords
 
 Final Score = max(0, Base Score - all_deductions)
@@ -191,8 +190,9 @@ If no JD was provided, omit the "Keyword Analysis" section entirely.
 
 ## Error Handling
 
-If a file cannot be read:
-1. Report the error clearly: "Error: Could not read file at [path]"
+If the resume file cannot be read:
+1. Report the error clearly: "Error: Could not read resume file at [path]"
 2. Suggest checking the file path
-3. If resume cannot be read, stop analysis
-4. If JD cannot be read, proceed without keyword analysis
+3. Stop analysis - cannot proceed without resume
+
+Note: Job description content is provided directly in the prompt, so there is no JD file to read.

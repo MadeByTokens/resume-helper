@@ -13,13 +13,16 @@ Traditional resume writing has two failure modes:
 | **Underselling** | Qualified candidates fail to articulate their value |
 | **Overselling** | Buzzword-heavy resumes waste everyone's time |
 
-This plugin uses **adversarial agents** to find the sweet spot. Three agents with different perspectives iterate until the resume is interview-ready:
+This plugin uses **adversarial agents** to find the sweet spot. Four agents with different perspectives iterate until the resume is interview-ready:
 
 - **Writer** (Advocate) - Presents the candidate compellingly
+- **Fact-Checker** (Validator) - Catches hallucinations before they spread
 - **Interviewer** (Skeptic) - Reviews like a real hiring manager would
 - **Coach** (Mediator) - Ensures honesty and synthesizes feedback
 
-The key insight: **information isolation**. The Interviewer only sees the resume (not the candidate's full story), simulating how a real hiring manager evaluates applications.
+Two key insights:
+1. **Information isolation** - The Interviewer only sees the resume (not the candidate's full story), simulating how a real hiring manager evaluates applications.
+2. **Hallucination prevention** - The Fact-Checker verifies every claim against the original input, ensuring the resume only contains what you actually provided.
 
 ---
 
@@ -124,8 +127,11 @@ The Coach will ask clarifying questions to strengthen your resume:
 ```mermaid
 flowchart LR
     subgraph Loop["Adversarial Loop"]
-        W["Writer<br/><i>Creates resume</i>"] --> I["Interviewer<br/><i>Reviews skeptically</i>"]
-        I --> C["Coach<br/><i>Synthesizes feedback</i>"]
+        W["Writer<br/><i>Creates resume</i>"] --> F["Fact-Checker<br/><i>Validates claims</i>"]
+        F -->|Hallucination| W
+        F -->|Pass| I["Interviewer<br/><i>Reviews skeptically</i>"]
+        I --> A["Analysis<br/><i>Metrics check</i>"]
+        A --> C["Coach<br/><i>Synthesizes feedback</i>"]
         C -->|Not ready| W
     end
     C -->|Ready| OUT["Final Resume +<br/>Interview Prep"]
@@ -133,14 +139,15 @@ flowchart LR
 
 ### Information Isolation
 
-| Information | Writer | Interviewer | Coach |
-|-------------|--------|-------------|-------|
-| Candidate's raw experience | ✓ | ✗ | ✓ |
-| Job description | ✓ | ✓ | ✓ |
-| Current resume | ✓ | ✓ | ✓ |
-| Interviewer's concerns | ✗ | - | ✓ |
+| Information | Writer | Fact-Checker | Interviewer | Coach |
+|-------------|--------|--------------|-------------|-------|
+| Candidate's raw experience | ✓ | ✓ | ✗ | ✓ |
+| Job description | ✓ | ✗ | ✓ | ✓ |
+| Current resume | ✓ | ✓ | ✓ | ✓ |
+| Interviewer's concerns | ✗ | ✗ | - | ✓ |
 
-The Interviewer never sees the candidate's raw input—just like a real hiring manager only sees the resume.
+- The **Interviewer** never sees the candidate's raw input—just like a real hiring manager only sees the resume.
+- The **Fact-Checker** compares resume claims against the original input to catch any invented details.
 
 ### Coach Verdicts
 
@@ -153,18 +160,34 @@ The Interviewer never sees the candidate's raw input—just like a real hiring m
 
 ---
 
-## Analysis Skills
+## Analysis Agents
 
-Before each coaching phase, the system runs analysis skills that provide objective metrics:
+Before each coaching phase, the system runs analysis agents in parallel that provide objective metrics:
 
-| Skill | Purpose |
+| Agent | Purpose |
 |-------|---------|
 | `analyze-vague-claims` | Flags unquantified language ("led team", "improved X") |
 | `analyze-buzzwords` | Identifies corporate jargon with clearer alternatives |
 | `check-ats-compatibility` | Checks ATS compatibility, keyword matching, and page limits |
 | `suggest-quantification` | Suggests questions to quantify achievements |
 
-These skills wrap Python tools in the `tools/` directory. The results are passed to the Coach agent for interpretation. All underlying tools support `--json` output and require no external dependencies beyond Python 3.8+.
+These agents run in parallel for faster analysis. Results are passed to the Coach agent who synthesizes them with the Interviewer's review to provide actionable guidance.
+
+---
+
+## Hallucination Prevention
+
+The system ensures your resume only contains what you actually provided:
+
+1. **Every claim is verified** - Numbers, achievements, technologies, dates—all traced back to your input
+2. **No invented details** - If you said "led team" without a size, it stays "led team" (not "led team of 8")
+3. **3-strike rule** - If the Writer hallucinates, it gets 3 attempts to fix before escalating to you
+4. **Fresh file reads** - Writer and Fact-Checker read your original experience file fresh from disk each time (not from memory). This prevents context corruption in long conversations.
+
+If the Writer keeps adding invented details, you'll be asked to either:
+- Provide the missing information
+- Explicitly allow vague claims
+- Accept the resume as-is with warnings
 
 ---
 
@@ -172,9 +195,9 @@ These skills wrap Python tools in the `tools/` directory. The results are passed
 
 **Before (raw input):**
 ```
-- Built microservices
-- Improved API performance
-- Led a team on migration project
+- Built 5 microservices using Python and FastAPI, handles about 100K requests/day
+- Improved API response time from 450ms to 250ms with caching
+- Led team of 4 engineers on 6-month migration project, no downtime
 ```
 
 **After (final resume):**
@@ -186,6 +209,8 @@ These skills wrap Python tools in the `tools/` directory. The results are passed
 - Led team of 4 engineers in migrating legacy monolith to microservices over 6 months with zero downtime
 ```
 
+> **Note:** All numbers in the final resume (5, 100K, 45%, 4, 6 months) came from the candidate's input. The Fact-Checker would reject any invented numbers.
+
 ---
 
 ## Troubleshooting
@@ -193,8 +218,6 @@ These skills wrap Python tools in the `tools/` directory. The results are passed
 **"No active loop found"** - Start a new loop with `/resume-helper:resume-loop "experience.md"`
 
 **Loop not converging** - Check `/resume-helper:resume-status` for outstanding concerns. The Coach may need more information from you.
-
-**Analysis skills not running** - Ensure Python 3.8+ is available: `python3 --version`
 
 **Resume too long** - Use `--max-pages 2` or `--max-pages 3` for longer resumes. The Coach will block completion if the resume exceeds the page limit.
 

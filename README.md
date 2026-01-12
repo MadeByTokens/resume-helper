@@ -97,6 +97,8 @@ The Coach will ask clarifying questions to strengthen your resume:
 
 - `resume_final.md` - Your polished resume
 - `interview_prep.md` - Preparation guide with likely questions
+- `resume_development_log.md` - Full audit trail of the development process
+- `candidate_additions.md` - Your answers to Coach questions (preserved for future use)
 
 ---
 
@@ -182,12 +184,29 @@ The system ensures your resume only contains what you actually provided:
 1. **Every claim is verified** - Numbers, achievements, technologies, dates—all traced back to your input
 2. **No invented details** - If you said "led team" without a size, it stays "led team" (not "led team of 8")
 3. **3-strike rule** - If the Writer hallucinates, it gets 3 attempts to fix before escalating to you
-4. **Fresh file reads** - Writer and Fact-Checker read your original experience file fresh from disk each time (not from memory). This prevents context corruption in long conversations.
+4. **Fresh file reads** - Writer and Fact-Checker read your files fresh from disk each time (not from memory). This prevents context corruption in long conversations.
+5. **Answers preserved** - When you answer Coach questions, your answers are saved to `candidate_additions.md`. The Writer and Fact-Checker read this file alongside your original input, so nothing you provide gets lost.
 
 If the Writer keeps adding invented details, you'll be asked to either:
 - Provide the missing information
 - Explicitly allow vague claims
 - Accept the resume as-is with warnings
+
+---
+
+## Development Log
+
+Every resume development session generates a detailed audit trail in `resume_development_log.md`:
+
+- **Timestamp for each action** - Know exactly when each phase completed
+- **Iteration tracking** - See how the resume evolved over multiple iterations
+- **Fact-check results** - Record of all hallucination checks (pass/fail)
+- **Analysis scores** - Vague claims, buzzwords, ATS compatibility scores per iteration
+- **Coach verdicts** - Each verdict with summary
+- **User interactions** - Questions asked and answers provided
+- **Final summary** - Complete overview of the development process
+
+This log provides full transparency into the AI's decision-making process.
 
 ---
 

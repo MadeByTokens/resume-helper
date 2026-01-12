@@ -147,6 +147,56 @@ Create `.resume-state.json`:
 }
 ```
 
+## Step 4.5: Initialize Supporting Files
+
+### A. Create Candidate Additions File
+
+Create `candidate_additions.md` to store additional information provided by the user during the process:
+
+```markdown
+# Candidate Additions
+
+Additional information provided during resume development.
+This file is read fresh by the Writer and Fact-Checker alongside the original experience file.
+
+---
+
+```
+
+This file will be appended to each time the user answers Coach questions.
+
+### B. Create Development Log
+
+Create `resume_development_log.md` to track the full development process:
+
+```markdown
+# Resume Development Log
+
+**Started:** <ISO timestamp>
+**Experience File:** <experiencePath>
+**Job Description:** <jobDescriptionPath or "None provided">
+**Page Limit:** <maxPages> pages (<maxWords> words)
+**Max Iterations:** <maxIterations>
+
+---
+
+## Process Trail
+
+```
+
+This log will be appended to throughout the process, giving the user a complete audit trail.
+
+**Log entry format:**
+```markdown
+### [TIMESTAMP] Iteration N - Phase Name
+
+**Event:** <what happened>
+**Details:** <specifics>
+**Outcome:** <result>
+
+---
+```
+
 ## Step 5: Main Loop
 
 **CRITICAL: This is an ITERATIVE LOOP. You MUST repeat Phases 1→1.5→2→3→4 until exit condition is met.**
@@ -169,11 +219,17 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
 │ Invoke Resume Writer agent via Task tool:                                   │
 │ - Provide: experience FILE PATH (not content!), job description, coach      │
 │   feedback, current resume (if iterating), page/word limits                 │
-│ - The Writer will READ the experience file fresh using Read tool            │
+│ - The Writer will READ BOTH files fresh:                                    │
+│   1. Original experience file                                               │
+│   2. candidate_additions.md (user answers to questions)                     │
 │ - DO NOT provide: interviewer's raw feedback, experience content in prompt  │
 │ - Agent type: resume-helper:resume-writer                                   │
 │                                                                             │
 │ Save Writer's output to state.currentResume and to resume_draft.md          │
+│                                                                             │
+│ **LOG:** Append to resume_development_log.md:                               │
+│   "### [TIME] Iteration N - WRITING"                                        │
+│   "Writer created/updated resume draft. Word count: X words."               │
 │                                                                             │
 │ → When complete, IMMEDIATELY CONTINUE to Phase 1.5                          │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -184,7 +240,7 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
 │ Update state: phase = "FACT_CHECK"                                          │
 │                                                                             │
 │ **This phase catches hallucinations before the resume reaches the           │
-│ Interviewer. The Fact Checker reads the original file fresh.**              │
+│ Interviewer. The Fact Checker reads all source files fresh.**               │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 **Initialize fact-check attempt counter:** If not set, set `factCheckAttempts = 0`
@@ -196,10 +252,12 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
   Verify the resume against the candidate's original input.
 
   Experience file path: [state.candidateInput.experiencePath]
+  Candidate additions file: candidate_additions.md
   Resume file path: resume_draft.md
 
-  Read BOTH files fresh using the Read tool. Do NOT rely on context.
-  Check every specific claim in the resume for a source in the original input.
+  Read ALL THREE files fresh using the Read tool. Do NOT rely on context.
+  Check every specific claim in the resume for a source in EITHER the original
+  experience file OR the candidate_additions.md file (user answers to questions).
 
   Follow your instructions and output a Fact Check Report with verdict PASS or FAIL.
   ```
@@ -211,6 +269,11 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
 │                                                                             │
 │ Display: "✅ Fact check passed. No hallucinations detected."                │
 │ Reset: factCheckAttempts = 0                                                │
+│                                                                             │
+│ **LOG:** Append to resume_development_log.md:                               │
+│   "### [TIME] Iteration N - FACT-CHECK"                                     │
+│   "**Result:** PASS - All claims verified against original input."          │
+│                                                                             │
 │ → CONTINUE to Phase 2: REVIEWING                                            │
 └─────────────────────────────────────────────────────────────────────────────┘
 
@@ -223,18 +286,31 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
 │                                                                             │
 │ Display the list of hallucinations from the Fact Checker's report.          │
 │                                                                             │
+│ **LOG:** Append to resume_development_log.md:                               │
+│   "### [TIME] Iteration N - FACT-CHECK"                                     │
+│   "**Result:** FAIL (attempt [factCheckAttempts]/3)"                        │
+│   "**Hallucinations found:**"                                               │
+│   - List each hallucinated claim from report                                │
+│                                                                             │
 │ IF factCheckAttempts < 3:                                                   │
 │   - Send hallucination list back to Writer as feedback                      │
+│   - **LOG:** "Returning to Writer for correction."                          │
 │   - → RETURN to Phase 1: WRITING (retry with feedback)                      │
 │                                                                             │
 │ IF factCheckAttempts >= 3:                                                  │
 │   - Display: "⚠️ Writer failed fact-check 3 times. Escalating to user."    │
+│   - **LOG:** "Escalating to user after 3 failed attempts."                  │
 │   - Use AskUserQuestion to show hallucinations and ask user:                │
 │     "The Writer keeps adding details not in your input. Options:"           │
 │     1. "Provide additional details" (user adds info to candidateInput)      │
 │     2. "Remove the hallucinated claims" (instruct Writer to use vague       │
 │        language)                                                            │
 │     3. "Accept current resume anyway" (proceed with warnings)               │
+│   - **LOG:** "User chose: [option selected]"                                │
+│   - **If user chose option 1 (provide details):**                           │
+│     - **SAVE TO FILE:** Append to `candidate_additions.md`:                 │
+│       "### [TIMESTAMP] Iteration N - Fact-Check Clarification"              │
+│       "[details user provided]"                                             │
 │   - Handle user's choice and proceed accordingly                            │
 │   - Reset: factCheckAttempts = 0                                            │
 │   - → Based on choice: RETURN to Phase 1 or CONTINUE to Phase 2             │
@@ -251,6 +327,11 @@ ITERATION START: Increment iteration counter, then execute Phases 1, 1.5, 2, 2.5
 │ - Agent type: resume-helper:interviewer                                     │
 │                                                                             │
 │ Save Interviewer's review to state.history[iteration].interviewerReview     │
+│                                                                             │
+│ **LOG:** Append to resume_development_log.md:                               │
+│   "### [TIME] Iteration N - REVIEWING"                                      │
+│   "Interviewer reviewed resume."                                            │
+│   "**Key concerns raised:** [summarize top 2-3 concerns]"                   │
 │                                                                             │
 │ → When complete, IMMEDIATELY CONTINUE to Phase 3                            │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -310,6 +391,16 @@ If suggest-quantification was not run, set: quantification_results = "Not run th
 
 Combine all results into analysis_results string for Coach.
 
+**LOG:** Append to resume_development_log.md:
+```
+### [TIME] Iteration N - ANALYSIS
+
+**Vague Claims:** [score]/100 ([high] high, [medium] medium, [low] low severity)
+**Buzzwords:** Clarity score [score]/100
+**ATS Compatibility:** [score]/100, [X] words ([within/over] limit)
+**Quantification:** [run/skipped]
+```
+
 → When ALL Tasks complete, IMMEDIATELY CONTINUE to Phase 4
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -325,6 +416,12 @@ Combine all results into analysis_results string for Coach.
 │ Parse Coach's verdict and feedback                                          │
 │ Update state.lastVerdict                                                    │
 │ Save iteration to history                                                   │
+│                                                                             │
+│ **LOG:** Append to resume_development_log.md:                               │
+│   "### [TIME] Iteration N - COACHING"                                       │
+│   "**Verdict:** [READY/NEEDS_STRENGTHENING/NEEDS_GROUNDING/BLOCKED]"        │
+│   "**Summary:** [Coach's 2-3 sentence summary]"                             │
+│   "**Questions for candidate:** [count] questions asked"                    │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 **After Phase 4 completes, handle verdict and questions:**
@@ -346,6 +443,16 @@ Then read and display the contents of `resume_draft.md` to the user.
    - Ask user for additional information via AskUserQuestion (HIGH priority questions)
    - Include the resume quote from the Coach's question table so user knows what's being asked
    - Add their response to candidateInput
+   - **SAVE TO FILE:** Append to `candidate_additions.md`:
+     ```markdown
+     ### [TIMESTAMP] Iteration N - User Response (BLOCKED)
+
+     **Question:** [the question asked]
+     **Answer:** [user's response]
+
+     ---
+     ```
+   - **LOG:** "**User provided additional info:** [summary of what user provided]"
    - → Then continue to EXIT CHECK below
 
 2. **If Coach output contains MEDIUM or HIGH priority questions (even if not BLOCKED):**
@@ -354,9 +461,20 @@ Then read and display the contents of `resume_draft.md` to the user.
    - Include the resume quote from the Coach's question table so user knows what's being asked
    - Add their responses to candidateInput for next iteration
    - (User can skip questions they don't want to answer)
+   - **SAVE TO FILE:** For each answered question, append to `candidate_additions.md`:
+     ```markdown
+     ### [TIMESTAMP] Iteration N - User Response
+
+     **Question:** [the question asked]
+     **Answer:** [user's response]
+
+     ---
+     ```
+   - **LOG:** "**User answered [X] questions:** [brief summary of answers]"
    - → Then continue to EXIT CHECK below
 
 3. **If no questions to ask:**
+   - **LOG:** "No questions asked this iteration."
    - → Continue directly to EXIT CHECK below
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -422,9 +540,41 @@ Check these conditions IN ORDER:
 └─────────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ FINALIZE STEP 4 of 4: Display Summary                                       │
+│ FINALIZE STEP 4 of 4: Complete Log and Display Summary                      │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ Display the completion summary to the user:                                 │
+│ **First, append final summary to resume_development_log.md:**               │
+│                                                                             │
+│ ```markdown                                                                 │
+│ ---                                                                         │
+│                                                                             │
+│ ## Final Summary                                                            │
+│                                                                             │
+│ **Completed:** <ISO timestamp>                                              │
+│ **Total Iterations:** X                                                     │
+│ **Final Verdict:** [READY / MAX_ITERATIONS_REACHED]                         │
+│ **Exit Reason:** [ready / max_iterations]                                   │
+│                                                                             │
+│ ### Output Files                                                            │
+│ - Resume: [output path]                                                     │
+│ - Interview Prep: interview_prep.md                                         │
+│ - Development Log: resume_development_log.md                                │
+│ - Candidate Additions: candidate_additions.md                               │
+│                                                                             │
+│ ### Key Improvements Made                                                   │
+│ [Summary of main changes across all iterations]                             │
+│                                                                             │
+│ ### Fact-Check Summary                                                      │
+│ - Total fact-check attempts: [count]                                        │
+│ - Hallucinations caught and corrected: [count]                              │
+│                                                                             │
+│ ### Final Scores                                                            │
+│ - Vague Claims: [score]/100                                                 │
+│ - Buzzwords: [score]/100                                                    │
+│ - ATS Compatibility: [score]/100                                            │
+│ - Word Count: [X] / [limit] words                                           │
+│ ```                                                                         │
+│                                                                             │
+│ **Then display the completion summary to the user:**                                 │
 │                                                                             │
 │   ═══════════════════════════════════════════════════                       │
 │   RESUME DEVELOPMENT COMPLETE                                               │
@@ -436,6 +586,8 @@ Check these conditions IN ORDER:
 │   Output Files:                                                             │
 │   - Resume: [output path]                                                   │
 │   - Interview Prep: interview_prep.md                                       │
+│   - Development Log: resume_development_log.md                              │
+│   - Candidate Additions: candidate_additions.md                             │
 │                                                                             │
 │   Key Improvements Made:                                                    │
 │   - [Summary of changes across iterations]                                  │
@@ -454,12 +606,13 @@ Check these conditions IN ORDER:
 ```
 You are the Resume Writer agent. Create/improve a resume for this candidate.
 
-## IMPORTANT: Read Experience File Fresh
+## IMPORTANT: Read Experience Files Fresh
 
-You MUST read the candidate's experience file using the Read tool before writing anything.
-Do NOT use any experience content from context - read the file fresh.
+You MUST read the candidate's files using the Read tool before writing anything.
+Do NOT use any experience content from context - read the files fresh.
 
 Experience file path: [state.candidateInput.experiencePath]
+Candidate additions file: candidate_additions.md
 
 ## Target Job Description (if provided)
 <job description or "Not provided - create a general-purpose resume">
@@ -475,8 +628,9 @@ Maximum: [maxPages] pages ([maxWords] words)
 
 Follow your agent instructions:
 1. FIRST: Read the experience file using Read tool
-2. THEN: Create/update the resume using ONLY what you read from the file
-3. Save the resume to resume_draft.md
+2. SECOND: Read candidate_additions.md (contains user answers to Coach questions)
+3. THEN: Create/update the resume using ONLY what you read from BOTH files
+4. Save the resume to resume_draft.md
 ```
 
 ### Interviewer Task

@@ -69,7 +69,11 @@ QUICK START
 1. Create experience.md with your raw experience
 2. Run: /resume-helper:resume-loop "experience.md"
 3. Answer the Coach's clarifying questions
-4. Get resume_final.md and interview_prep.md
+4. Get your output files:
+   - resume_final.md           (your polished resume)
+   - interview_prep.md         (preparation guide)
+   - resume_development_log.md (full audit trail)
+   - candidate_additions.md    (your answers to Coach questions)
 
 NOTE: Default is 1-page resume. Use --max-pages 2 or --max-pages 3 for longer resumes.
       Recommended: 1 page (<10 yrs exp), 2 pages (10-20 yrs), 3 pages (executives/academics)

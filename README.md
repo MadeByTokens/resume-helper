@@ -140,6 +140,7 @@ The Coach will ask clarifying questions to strengthen your resume:
 | `--max-iterations` | 5 | Maximum improvement cycles |
 | `--max-pages` | 1 | Maximum resume pages: 1, 2, or 3 (prompts for confirmation if not specified) |
 | `--output <file>` | `./resume_final.md` | Output path for final resume |
+| `--premium` | false | Use Opus model for Coach agent (higher quality synthesis, higher cost) |
 
 ---
 
@@ -307,6 +308,16 @@ Contributions welcome! Some ideas:
 - **Industry-specific keyword sets** for ATS matching
 - **Bug fixes** and edge case handling
 - **Documentation** improvements
+
+### Developer Notes
+
+**Premium Agent Generation:** The `coach-premium.md` agent is auto-generated from `coach.md`. After modifying `coach.md`, run:
+
+```bash
+./scripts/generate-premium-agents.sh
+```
+
+This creates `agents/coach-premium.md` with `model: opus` instead of `model: sonnet`.
 
 ---
 

@@ -63,12 +63,14 @@ Extract from user's command:
 - `--max-iterations`: Maximum loop iterations (DEFAULT: 5)
 - `--max-pages`: Maximum page length - 1, 2, or 3 (DEFAULT: 1, requires confirmation)
 - `--output`: Output path for final resume (DEFAULT: ./resume_final.md)
+- `--premium`: Use Opus model for Coach agent for higher quality synthesis (DEFAULT: false)
 
 Example commands:
 ```
 /resume-loop "my_experience.md"
 /resume-loop "experience.md" --job "job_description.md"
 /resume-loop "exp.md" --job "jd.md" --max-pages 2
+/resume-loop "exp.md" --job "jd.md" --premium
 ```
 
 ## Step 2: Validate Input Files
@@ -126,11 +128,14 @@ Create `working/state.json`:
   "maxPages": 1,
   "maxWords": 450,
   "outputPath": "./resume_final.md",
+  "premium": false,
   "lastVerdict": null,
   "factCheckAttempts": 0,
   "startedAt": "<ISO timestamp>"
 }
 ```
+
+If `--premium` was specified, set `"premium": true` and display: "Premium mode enabled: Coach will use Opus model."
 
 ## Step 5: Main Loop
 
@@ -249,7 +254,8 @@ ITERATION START
 │ Update state.json: phase = "COACHING"                                       │
 │                                                                             │
 │ Invoke Coach agent via Task tool:                                           │
-│   subagent_type: "resume-helper:coach"                                      │
+│   subagent_type: "resume-helper:coach-premium" (if premium==true)           │
+│                  "resume-helper:coach" (if premium==false)                  │
 │   prompt: "Follow your file-based I/O instructions. Read all inputs         │
 │            and analysis files, write outputs to working/coach/."            │
 │                                                                             │
@@ -354,9 +360,16 @@ prompt: "Follow your file-based I/O instructions."
 
 ### Coach
 ```
+# Standard mode (default):
 subagent_type: "resume-helper:coach"
 prompt: "Follow your file-based I/O instructions. Read all input files, analysis results, and interviewer review. Write outputs to working/coach/."
+
+# Premium mode (when --premium flag is used):
+subagent_type: "resume-helper:coach-premium"
+prompt: "Follow your file-based I/O instructions. Read all input files, analysis results, and interviewer review. Write outputs to working/coach/."
 ```
+
+**Premium Mode:** When `--premium` is enabled, use `resume-helper:coach-premium` instead of `resume-helper:coach`. The premium agent uses Claude Opus for higher quality synthesis and more nuanced judgment calls.
 
 ## Context Savings
 

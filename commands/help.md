@@ -28,12 +28,13 @@ COMMANDS
     --max-iterations <n>  Maximum improvement cycles (default: 5)
     --max-pages <n>       Maximum pages: 1, 2, or 3 (default: 1, prompts for confirmation)
     --output <file>       Output path for final resume (default: ./resume_final.md)
+    --premium             Use Opus model for Coach (higher quality, higher cost)
 
   Examples:
     /resume-helper:resume-loop "experience.md"
     /resume-helper:resume-loop "exp.md" --job "job.md"
     /resume-helper:resume-loop "exp.md" --job "jd.md" --max-pages 2
-    /resume-helper:resume-loop "exp.md" --job "jd.md" --max-iterations 3
+    /resume-helper:resume-loop "exp.md" --job "jd.md" --premium
 
 ────────────────────────────────────────────────────────────────────
 

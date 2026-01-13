@@ -96,7 +96,7 @@ Please provide this information, then the loop will continue.
 
 Key fields in `working/state.json`:
 - `active`: Whether loop is running
-- `phase`: Current phase (WRITING, FACT_CHECK, REVIEWING, ANALYZING, COACHING, COMPLETE)
+- `phase`: Current phase (INITIALIZED, WRITING, FACT_CHECK, REVIEWING, ANALYZING, COACHING, COMPLETE)
 - `iteration`: Current iteration number
 - `maxIterations`: Maximum iterations allowed
 - `maxPages`: Page limit (1, 2, or 3)

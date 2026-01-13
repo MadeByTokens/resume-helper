@@ -111,6 +111,7 @@ All agents communicate through files to minimize context window usage:
   │   └── candidate_additions.md # Your answers to questions
   ├── writer/                    # Writer's outputs
   │   ├── output.md              # Current resume draft
+  │   ├── notes.md               # Writer's notes about changes
   │   └── status.md              # Status: DONE or BLOCKED
   ├── fact_checker/              # Fact-Checker's outputs
   │   ├── report.md              # Full verification report

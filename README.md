@@ -217,16 +217,8 @@ working/
 └── state.json                   # Loop state (iteration, phase, etc.)
 ```
 
-### Context Savings
-
-| Metric | Before (inline) | After (file-based) |
-|--------|-----------------|-------------------|
-| Per-agent prompt | 5-20 KB | ~100 bytes |
-| Orchestrator context per iteration | ~40 KB | ~500 bytes |
-| 5-iteration loop total | ~200 KB | ~5 KB |
-
 The orchestrator stays lean by:
-- Only reading verdict/status files (~50 bytes each)
+- Only reading small verdict/status files (not full outputs)
 - Passing minimal prompts to agents
 - Letting agents read/write their own files directly
 

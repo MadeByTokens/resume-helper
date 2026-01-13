@@ -1,11 +1,11 @@
 ---
-description: Start adversarial resume development loop with three agents
+description: Start adversarial resume development loop with four agents
 allowed-tools: Write, Read, Glob, Grep, Edit, Bash, Task, TodoWrite, AskUserQuestion
 ---
 
 # Resume Development Loop (Thin Orchestrator)
 
-You are orchestrating an adversarial three-agent loop to develop a compelling AND honest resume.
+You are orchestrating an adversarial four-agent loop to develop a compelling AND honest resume.
 
 **CRITICAL: This orchestrator uses FILE-BASED message passing to minimize context usage.**
 - Agents read inputs from files and write outputs to files
@@ -373,17 +373,8 @@ prompt: "Follow your file-based I/O instructions. Read all input files, analysis
 
 ## Context Savings
 
-This file-based architecture dramatically reduces context usage:
-
-| Item | Old (inline) | New (file-based) |
-|------|--------------|------------------|
-| Per-agent prompt | ~5-20KB | ~100 bytes |
-| Orchestrator reads full outputs | Yes | No (only verdicts) |
-| Agent results in main context | ~40KB/iteration | ~500 bytes/iteration |
-| 5-iteration loop | ~200KB | ~5KB |
-
-The orchestrator stays lean by:
-1. Only reading verdict/status files (~50 bytes each)
+This file-based architecture reduces context usage. The orchestrator stays lean by:
+1. Only reading small verdict/status files (not full outputs)
 2. Passing minimal prompts to agents
 3. Letting agents read/write their own files
 4. Never holding full resume/review content in context

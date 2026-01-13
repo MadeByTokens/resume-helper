@@ -1,4 +1,5 @@
-<img width="1024" height="434" alt="image" src="https://github.com/user-attachments/assets/6078acff-be4f-4375-9ff0-21fbee31140e" />
+<img width="3168" height="1344" alt="Resume-Helper" src="https://github.com/user-attachments/assets/cca7a750-bf5a-4f53-bd56-51491fb9791f" />
+
 
 # Resume Helper Plugin
 
